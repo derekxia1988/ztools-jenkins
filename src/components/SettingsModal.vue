@@ -7,7 +7,8 @@
       </div>
 
       <div class="modal-body">
-        <form @submit.prevent="handleSubmit">
+        <form @submit.prevent="handleSave">
+          <!-- 第一行：名称 + URL -->
           <div class="form-row">
             <div class="form-group">
               <label>显示名称</label>
@@ -28,7 +29,10 @@
                 required
               />
             </div>
+          </div>
 
+          <!-- 第二行：用户名 + API Token -->
+          <div class="form-row">
             <div class="form-group">
               <label>用户名</label>
               <input
@@ -40,11 +44,15 @@
             </div>
 
             <div class="form-group">
-              <label>API Token</label>
+              <label>
+                API Token
+                <span v-if="mode === 'edit'" class="hint-inline">（留空保持不变）</span>
+              </label>
               <input
                 v-model="form.apiToken"
                 type="password"
                 :placeholder="mode === 'edit' ? '留空保持不变' : 'Jenkins API Token'"
+                :required="mode === 'add'"
               />
             </div>
           </div>
@@ -54,6 +62,7 @@
           </span>
 
           <div v-if="formError" class="error-text">{{ formError }}</div>
+          <div v-if="testPassed" class="success-text">✓ 连接测试通过，可以保存</div>
 
           <div class="form-actions">
             <button
@@ -67,8 +76,11 @@
             <button type="button" class="btn btn-default" @click="$emit('close')">
               取消
             </button>
-            <button type="submit" class="btn btn-primary" :disabled="formLoading">
-              {{ formLoading ? '验证中...' : (mode === 'edit' ? '保存' : '测试并添加') }}
+            <button type="button" class="btn btn-secondary" @click="handleTest" :disabled="formLoading">
+              {{ formLoading ? '测试中...' : '测试连接' }}
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="!canSave">
+              保存
             </button>
           </div>
         </form>
@@ -87,7 +99,7 @@
                 <span class="instance-name">{{ instance.name }}</span>
                 <span class="instance-url">{{ instance.url }}</span>
               </div>
-              <span class="instance-edit-icon" :title="'编辑 ' + instance.name">›</span>
+              <span class="instance-edit-icon">›</span>
             </div>
           </div>
         </div>
@@ -109,13 +121,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useInstances } from '../composables/useInstances'
 import type { JenkinsInstance } from '../types'
 
 const props = defineProps<{
   show: boolean
-  /** 编辑模式：传入要编辑的实例 id；新增模式：留空 */
   editInstanceId?: string
 }>()
 
@@ -123,7 +134,7 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { instances, addInstance, updateInstance, deleteInstance } = useInstances()
+const { instances, addInstance, updateInstance, deleteInstance, testConnection } = useInstances()
 
 const mode = ref<'add' | 'edit'>('add')
 const form = reactive({
@@ -134,10 +145,15 @@ const form = reactive({
 })
 const formLoading = ref(false)
 const formError = ref<string | null>(null)
+const testPassed = ref(false)
 
-/**
- * 加载要编辑的实例数据
- */
+/** 是否可以保存：表单完整 + 测试通过（编辑模式初始视为已通过） */
+const canSave = computed(() => {
+  if (!form.name || !form.url || !form.username) return false
+  if (mode.value === 'add' && !form.apiToken) return false
+  return testPassed.value
+})
+
 watch(() => props.editInstanceId, (id) => {
   if (id) {
     mode.value = 'edit'
@@ -148,35 +164,77 @@ watch(() => props.editInstanceId, (id) => {
       form.username = instance.username
       form.apiToken = ''
     }
+    testPassed.value = true
   } else {
     mode.value = 'add'
     form.name = ''
     form.url = ''
     form.username = ''
     form.apiToken = ''
+    testPassed.value = false
   }
   formError.value = null
 }, { immediate: true })
 
 watch(() => props.show, (show) => {
-  if (show && props.editInstanceId) {
-    const instance = instances.value.find(i => i._id === props.editInstanceId)
-    if (instance) {
-      form.name = instance.name
-      form.url = instance.url
-      form.username = instance.username
-      form.apiToken = ''
-    }
-  }
   if (!show) {
+    formError.value = null
+    testPassed.value = mode.value === 'edit'
+  }
+})
+
+// 任何字段变化，重置测试状态
+watch([() => form.name, () => form.url, () => form.username, () => form.apiToken], () => {
+  if (testPassed.value) {
+    testPassed.value = false
+  }
+  if (formError.value) {
     formError.value = null
   }
 })
 
+/** 查找现有 token（编辑模式） */
+const findExistingToken = (): string => {
+  const instance = instances.value.find(i => i._id === props.editInstanceId)
+  return instance?.apiToken || ''
+}
+
 /**
- * 提交表单
+ * 测试连接
  */
-const handleSubmit = async () => {
+const handleTest = async () => {
+  formLoading.value = true
+  formError.value = null
+
+  const token = form.apiToken || (mode.value === 'edit' ? findExistingToken() : '')
+  if (!token) {
+    formError.value = '请填写 API Token'
+    formLoading.value = false
+    return
+  }
+
+  const result = await testConnection(form.url, form.username, token)
+
+  formLoading.value = false
+
+  if (result.error) {
+    formError.value = `连接失败: ${result.error}`
+    testPassed.value = false
+  } else {
+    testPassed.value = true
+    window.ztools.showNotification('✅ 连接测试成功', 'Jenkins Lite')
+  }
+}
+
+/**
+ * 保存
+ */
+const handleSave = async () => {
+  if (!canSave.value) {
+    formError.value = '请先测试连接'
+    return
+  }
+
   formLoading.value = true
   formError.value = null
 
@@ -194,7 +252,7 @@ const handleSubmit = async () => {
     formLoading.value = false
 
     if (result.success) {
-      window.ztools.showNotification('实例已更新', 'Jenkins Lite')
+      window.ztools.showNotification('✅ 实例已更新', 'Jenkins Lite')
       emit('close')
     } else {
       formError.value = result.error || '更新失败'
@@ -213,7 +271,8 @@ const handleSubmit = async () => {
       form.url = ''
       form.username = ''
       form.apiToken = ''
-      window.ztools.showNotification('实例添加成功', 'Jenkins Lite')
+      testPassed.value = false
+      window.ztools.showNotification('✅ 实例添加成功', 'Jenkins Lite')
       emit('close')
     } else {
       formError.value = result.error || '添加失败'
@@ -227,7 +286,7 @@ const handleSubmit = async () => {
 const handleDelete = () => {
   if (confirm('确定要删除这个实例吗？')) {
     deleteInstance(props.editInstanceId!)
-    window.ztools.showNotification('实例已删除', 'Jenkins Lite')
+    window.ztools.showNotification('🗑️ 实例已删除', 'Jenkins Lite')
     emit('close')
   }
 }
@@ -243,7 +302,7 @@ const switchToEdit = (id: string) => {
     form.username = instance.username
     form.apiToken = ''
     mode.value = 'edit'
-    // 直接修改 props 不允许，需要通过 emit 让父组件更新
+    testPassed.value = true
     formError.value = null
   }
 }
@@ -266,7 +325,7 @@ const switchToEdit = (id: string) => {
 .settings-modal {
   background: var(--bg-color, #fff);
   border-radius: 8px;
-  width: 720px;
+  width: 560px;
   max-width: 90vw;
   max-height: 80vh;
   display: flex;
@@ -274,7 +333,7 @@ const switchToEdit = (id: string) => {
 }
 
 .settings-modal.edit-mode {
-  width: 720px;
+  width: 560px;
 }
 
 .modal-header {
@@ -351,12 +410,12 @@ const switchToEdit = (id: string) => {
   text-decoration: underline;
 }
 
-/* 横向布局：4 列 */
+/* 布局：每行两个输入框 */
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1.5fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .form-group {
@@ -369,6 +428,13 @@ const switchToEdit = (id: string) => {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-color, #333);
+}
+
+.hint-inline {
+  margin-left: 6px;
+  font-weight: normal;
+  color: var(--text-secondary, #888);
+  font-size: 11px;
 }
 
 .form-group input {
@@ -393,7 +459,7 @@ const switchToEdit = (id: string) => {
 
 .help-text {
   display: block;
-  margin: 8px 0 16px;
+  margin: 4px 0 12px;
   font-size: 11px;
   color: var(--text-secondary, #888);
 }
@@ -405,6 +471,16 @@ const switchToEdit = (id: string) => {
   border: 1px solid #ffccc7;
   border-radius: 4px;
   color: #ff4d4f;
+  font-size: 12px;
+}
+
+.success-text {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+  color: #52c41a;
   font-size: 12px;
 }
 
@@ -420,11 +496,11 @@ const switchToEdit = (id: string) => {
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, background 0.15s;
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -436,6 +512,16 @@ const switchToEdit = (id: string) => {
 
 .btn-primary:hover:not(:disabled) {
   background: #006abc;
+}
+
+.btn-secondary {
+  background: var(--bg-color, #fff);
+  border: 1px solid var(--primary-color, #0078d4);
+  color: var(--primary-color, #0078d4);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--primary-bg, rgba(0,120,212,0.08));
 }
 
 .btn-default {
@@ -459,7 +545,6 @@ const switchToEdit = (id: string) => {
   background: #fff2f0;
 }
 
-/* 管理已有实例 */
 .manage-section {
   margin-top: 24px;
   padding-top: 20px;
@@ -524,11 +609,15 @@ const switchToEdit = (id: string) => {
   margin-left: 8px;
 }
 
-/* 暗黑模式适配 */
 @media (prefers-color-scheme: dark) {
   .error-text {
     background: rgba(255, 77, 79, 0.1);
     border-color: rgba(255, 77, 79, 0.3);
+  }
+
+  .success-text {
+    background: rgba(82, 196, 26, 0.1);
+    border-color: rgba(82, 196, 26, 0.3);
   }
 
   .btn-danger:hover {
