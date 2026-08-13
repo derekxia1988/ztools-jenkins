@@ -146,7 +146,7 @@ const handleAddInstance = async () => {
     form.url = ''
     form.username = ''
     form.apiToken = ''
-    window.ztools.showNotification('实例添加成功', 'Jenkins Lite')
+    window.ztools.showNotification('✅ 实例添加成功', 'Jenkins Lite')
     emit('close')
   } else {
     formError.value = result.error || '添加失败'
@@ -159,7 +159,7 @@ const handleAddInstance = async () => {
 const handleDeleteInstance = (id: string) => {
   if (confirm('确定要删除这个实例吗？')) {
     deleteInstance(id)
-    window.ztools.showNotification('实例已删除', 'Jenkins Lite')
+    window.ztools.showNotification('🗑️ 实例已删除', 'Jenkins Lite')
   }
 }
 </script>

@@ -189,16 +189,17 @@ const confirmBuild = async () => {
   if (!buildConfirmJob.value || !currentClient.value) return
 
   building.value = true
+  const jobName = buildConfirmJob.value.name
 
-  const result = await currentClient.value.triggerBuild(buildConfirmJob.value.name)
+  const result = await currentClient.value.triggerBuild(jobName)
 
   building.value = false
   buildConfirmJob.value = null
 
   if (result.error) {
-    window.ztools.showNotification(`构建触发失败: ${result.error}`, 'Jenkins Lite')
+    window.ztools.showNotification(`❌ 构建触发失败: ${result.error}`, 'Jenkins Lite')
   } else {
-    window.ztools.showNotification(`${buildConfirmJob.value?.name} 构建已触发`, 'Jenkins Lite')
+    window.ztools.showNotification(`🚀 ${jobName} 构建已触发`, 'Jenkins Lite')
     // 刷新 Jobs 列表以更新状态
     setTimeout(() => loadJobs(), 2000)
   }
