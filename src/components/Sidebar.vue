@@ -30,32 +30,25 @@
     </div>
 
     <nav class="sidebar-nav">
-      <!-- 收藏（固定到视图头部） -->
-      <div class="nav-section" v-if="hasInstances && currentInstance && currentInstanceFavorites.length > 0">
-        <div class="nav-section-title favorites-title">⭐ 收藏</div>
-        <div
-          v-for="fav in currentInstanceFavorites"
-          :key="fav._id"
-          class="nav-item favorite-item"
-          :class="{ active: props.selectedJob === fav.jobName }"
-          @click="handleFavoriteClick(fav)"
-          :title="fav.viewName ? `${fav.jobName} (${fav.viewName})` : fav.jobName"
-        >
-          <span class="nav-icon star-icon"></span>
-          <span class="nav-label">{{ fav.jobName }}</span>
-          <button
-            class="quick-build-btn"
-            @click.stop="handleQuickBuild(fav)"
-            title="快速触发构建"
-          >
-            <span class="play-icon-sm"></span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Jenkins 视图列表 -->
+      <!-- Jenkins 视图列表 + 收藏 -->
       <div class="nav-section" v-if="hasInstances && currentInstance">
         <div class="nav-section-title">视图</div>
+
+        <!-- 收藏 - 作为特殊视图 -->
+        <div
+          class="nav-item favorite-view-item"
+          :class="{ active: props.currentView === '__favorites__' }"
+          @click="selectView('__favorites__')"
+          title="收藏的 Jobs"
+        >
+          <span class="nav-icon star-icon"></span>
+          <span class="nav-label">⭐ 收藏</span>
+          <span class="favorite-count" v-if="currentInstanceFavorites.length > 0">
+            {{ currentInstanceFavorites.length }}
+          </span>
+        </div>
+
+        <!-- Jenkins 视图列表 -->
         <div
           v-for="view in views"
           :key="view.name"
@@ -141,25 +134,6 @@ const loadViews = async () => {
 
 const selectView = (viewName: string) => {
   emit('view-change', viewName)
-}
-
-const handleFavoriteClick = (fav: Favorite) => {
-  if (currentInstance.value?._id !== fav.instanceId) {
-    switchInstance(fav.instanceId)
-  }
-  emit('favorite-click', fav)
-}
-
-const handleQuickBuild = async (fav: Favorite) => {
-  if (!currentClient.value) return
-  if (!confirm(`确定要触发 ${fav.jobName} 的构建吗？`)) return
-
-  const result = await currentClient.value.triggerBuild(fav.jobName)
-  if (result.error) {
-    window.ztools.showNotification(`❌ ${fav.jobName} 构建触发失败: ${result.error}`, 'Jenkins Lite')
-  } else {
-    window.ztools.showNotification(`🚀 ${fav.jobName} 构建已触发`, 'Jenkins Lite')
-  }
 }
 
 watch(currentInstance, () => loadViews())
@@ -377,49 +351,27 @@ onMounted(() => {
   background: var(--primary-color, #0078d4);
 }
 
-.favorite-item {
-  padding-right: 8px;
+.favorite-view-item {
+  border-left: 3px solid transparent;
 }
 
-.favorite-item .nav-label {
-  flex: 1;
-  min-width: 0;
+.favorite-view-item.active {
+  border-left-color: var(--primary-color, #0078d4);
 }
 
-.quick-build-btn {
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.15s, background 0.15s;
-  color: var(--text-secondary, #888);
+.favorite-count {
+  background: var(--bg-secondary, #e0e0e0);
+  color: var(--text-secondary, #666);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
   margin-left: 4px;
-  flex-shrink: 0;
-  padding: 0;
 }
 
-.favorite-item:hover .quick-build-btn {
-  opacity: 1;
-}
-
-.quick-build-btn:hover {
-  background: var(--bg-hover, rgba(0,0,0,0.08));
-  color: var(--primary-color, #0078d4);
-}
-
-.play-icon-sm {
-  display: inline-block;
-  width: 0;
-  height: 0;
-  border-left: 6px solid currentColor;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
+.favorite-view-item.active .favorite-count {
+  background: var(--primary-color, #0078d4);
+  color: #fff;
 }
 
 .nav-label {

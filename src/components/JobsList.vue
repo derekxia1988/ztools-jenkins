@@ -119,8 +119,10 @@ const loadJobs = async () => {
   error.value = null
 
   let result
-  // 根据当前视图加载 Jobs
-  if (props.currentView) {
+  if (props.currentView === '__favorites__') {
+    // 收藏视图：加载所有 jobs，由 filteredJobs 过滤出收藏的
+    result = await currentClient.value.getJobs()
+  } else if (props.currentView) {
     result = await currentClient.value.getViewJobs(props.currentView)
   } else {
     result = await currentClient.value.getJobs()
@@ -147,10 +149,18 @@ const refreshJobs = () => {
  * 过滤 Jobs
  */
 const filteredJobs = computed(() => {
-  if (!searchQuery.value) return jobs.value
+  let list = jobs.value
+
+  // 收藏视图：只显示收藏的 jobs
+  if (props.currentView === '__favorites__') {
+    list = list.filter(job => favoritedJobs.value.has(job.name))
+  }
+
+  // 搜索过滤
+  if (!searchQuery.value) return list
 
   const query = searchQuery.value.toLowerCase()
-  return filterJobsRecursive(jobs.value, query)
+  return filterJobsRecursive(list, query)
 })
 
 /**
@@ -247,9 +257,9 @@ watch(() => props.currentView, () => {
   loadJobs()
 })
 
-// 当 Jobs 加载完成后，自动选中第一个
+// 当 Jobs 加载完成后，自动选中第一个（收藏视图除外）
 watch(jobs, (newJobs) => {
-  if (newJobs.length > 0 && !props.selectedJob) {
+  if (newJobs.length > 0 && !props.selectedJob && props.currentView !== '__favorites__') {
     const firstJob = getFirstJob(newJobs)
     if (firstJob) {
       handleJobClick(firstJob)

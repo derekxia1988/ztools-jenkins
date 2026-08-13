@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Sidebar from './components/Sidebar.vue'
 import JobsList from './components/JobsList.vue'
 import BuildHistory from './components/BuildHistory.vue'
 import SettingsModal from './components/SettingsModal.vue'
+import FavoritesPanel from './components/FavoritesPanel.vue'
 import { useInstances } from './composables/useInstances'
 import { useFavorites } from './composables/useFavorites'
 import type { JobInfo, Favorite } from './types'
@@ -19,6 +20,9 @@ const autoSelectFirstJob = ref(false)
 const searchFocusKey = ref(0)
 const initialSearchQuery = ref('')
 
+/** 是否为收藏视图 */
+const isFavoritesView = computed(() => currentView.value === '__favorites__')
+
 /**
  * 处理收藏点击 - 跳转到收藏的视图并选中该 job
  */
@@ -32,6 +36,13 @@ const handleFavoriteClick = (fav: Favorite) => {
   } else {
     selectedJob.value = fav.jobName
   }
+}
+
+/**
+ * 处理右侧收藏面板点击 - 切换到对应视图并选中
+ */
+const handleFavoritesPanelSelect = (fav: Favorite) => {
+  handleFavoriteClick(fav)
 }
 
 /**
@@ -71,13 +82,6 @@ const handleOpenSettings = () => {
   showSettings.value = true
 }
 
-/**
- * 在设置中选择编辑其他实例
- */
-const handleEditInstance = (id: string) => {
-  editInstanceId.value = id
-}
-
 onMounted(async () => {
   await loadInstances()
   loadFavorites()
@@ -88,7 +92,6 @@ onMounted(async () => {
     const payload = getPayload()
     if (payload && payload.type === 'over' && payload.payload) {
       initialSearchQuery.value = String(payload.payload)
-      // 触发搜索框聚焦
       setTimeout(() => {
         searchFocusKey.value++
       }, 200)
@@ -139,7 +142,14 @@ onMounted(async () => {
           />
         </div>
 
-        <div class="history-panel">
+        <!-- 收藏视图时显示收藏面板，否则显示构建历史 -->
+        <div class="history-panel" v-if="isFavoritesView">
+          <FavoritesPanel
+            :selected-job="selectedJob"
+            @select-favorite="handleFavoritesPanelSelect"
+          />
+        </div>
+        <div class="history-panel" v-else>
           <BuildHistory :selected-job="selectedJob" />
         </div>
       </div>
