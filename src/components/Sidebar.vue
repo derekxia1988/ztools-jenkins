@@ -24,7 +24,7 @@
         <div class="service-divider"></div>
         <div class="service-option add-service" @click="openSettings">
           <span class="add-icon">+</span>
-          <span>管理实例</span>
+          <span>新增实例</span>
         </div>
       </div>
     </div>
