@@ -4,7 +4,6 @@ import Sidebar from './components/Sidebar.vue'
 import JobsList from './components/JobsList.vue'
 import BuildHistory from './components/BuildHistory.vue'
 import SettingsModal from './components/SettingsModal.vue'
-import FavoritesPanel from './components/FavoritesPanel.vue'
 import { useInstances } from './composables/useInstances'
 import { useFavorites } from './composables/useFavorites'
 import type { JobInfo, Favorite } from './types'
@@ -107,6 +106,7 @@ onMounted(async () => {
   <div class="app">
     <Sidebar
       :current-view="currentView"
+      :selected-job="selectedJob"
       @favorite-click="handleFavoriteClick"
       @view-change="handleViewChange"
       @open-settings="handleOpenSettings"
@@ -136,13 +136,6 @@ onMounted(async () => {
             :initial-query="initialSearchQuery"
             @job-click="handleJobClick"
             @build-complete="handleBuildComplete"
-          />
-        </div>
-
-        <div class="favorites-panel-wrapper">
-          <FavoritesPanel
-            :selected-job="selectedJob"
-            @favorite-click="handleFavoriteClick"
           />
         </div>
 
@@ -260,12 +253,6 @@ body {
 
 .jobs-panel {
   flex: 1;
-  overflow: hidden;
-  border-right: 1px solid var(--border-color, #e0e0e0);
-}
-
-.favorites-panel-wrapper {
-  width: 220px;
   overflow: hidden;
   border-right: 1px solid var(--border-color, #e0e0e0);
 }
