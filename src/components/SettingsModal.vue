@@ -1,22 +1,20 @@
 <template>
   <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal settings-modal">
+    <div class="modal settings-modal" :class="{ 'edit-mode': mode === 'edit' }">
       <div class="modal-header">
-        <h2>设置</h2>
+        <h2>{{ mode === 'edit' ? '编辑 Jenkins 实例' : '添加 Jenkins 实例' }}</h2>
         <button class="close-btn" @click="$emit('close')">×</button>
       </div>
 
       <div class="modal-body">
-        <!-- 添加实例 -->
-        <div class="settings-section">
-          <h3>添加 Jenkins 实例</h3>
-          <form @submit.prevent="handleAddInstance">
+        <form @submit.prevent="handleSubmit">
+          <div class="form-row">
             <div class="form-group">
               <label>显示名称</label>
               <input
                 v-model="form.name"
                 type="text"
-                placeholder="例如：测试环境-Jenkins"
+                placeholder="例如：测试环境"
                 required
               />
             </div>
@@ -46,46 +44,61 @@
               <input
                 v-model="form.apiToken"
                 type="password"
-                placeholder="Jenkins API Token"
-                required
+                :placeholder="mode === 'edit' ? '留空保持不变' : 'Jenkins API Token'"
               />
-              <span class="help-text">
-                获取方式：登录 Jenkins → 点击用户名 → Configure → API Token → Add new Token
-              </span>
             </div>
-
-            <div v-if="formError" class="error-text">{{ formError }}</div>
-
-            <button type="submit" class="btn btn-primary" :disabled="formLoading">
-              {{ formLoading ? '验证中...' : '添加并测试连接' }}
-            </button>
-          </form>
-        </div>
-
-        <!-- 实例列表 -->
-        <div class="settings-section">
-          <h3>已配置的实例</h3>
-          <div v-if="instances.length === 0" class="empty-text">
-            暂无已配置的实例
           </div>
-          <div v-else class="instance-list">
+
+          <span class="help-text">
+            获取 Token：登录 Jenkins → 点击用户名 → Configure → API Token → Add new Token
+          </span>
+
+          <div v-if="formError" class="error-text">{{ formError }}</div>
+
+          <div class="form-actions">
+            <button
+              v-if="mode === 'edit'"
+              type="button"
+              class="btn btn-danger"
+              @click="handleDelete"
+            >
+              删除实例
+            </button>
+            <button type="button" class="btn btn-default" @click="$emit('close')">
+              取消
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="formLoading">
+              {{ formLoading ? '验证中...' : (mode === 'edit' ? '保存' : '测试并添加') }}
+            </button>
+          </div>
+        </form>
+
+        <!-- 管理其他实例 -->
+        <div v-if="mode === 'add' && instances.length > 0" class="manage-section">
+          <h3>已配置的实例</h3>
+          <div class="instance-list">
             <div
               v-for="instance in instances"
               :key="instance._id"
               class="instance-item"
+              @click="switchToEdit(instance._id)"
             >
               <div class="instance-info">
                 <span class="instance-name">{{ instance.name }}</span>
                 <span class="instance-url">{{ instance.url }}</span>
               </div>
-              <button
-                class="btn btn-danger btn-sm"
-                @click="handleDeleteInstance(instance._id)"
-              >
-                删除
-              </button>
+              <span class="instance-edit-icon" :title="'编辑 ' + instance.name">›</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="security-notice">
+          🔒 数据安全：本插件开源透明，所有配置仅保存在你的本地设备，不上传任何服务器。<br>
+          <a href="https://github.com/kshq1996/ztools-jenkins" target="_blank">
+            github.com/kshq1996/ztools-jenkins
+          </a>
         </div>
       </div>
     </div>
@@ -93,65 +106,142 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { useInstances } from '../composables/useInstances'
+import type { JenkinsInstance } from '../types'
 
-defineProps<{
+const props = defineProps<{
   show: boolean
+  /** 编辑模式：传入要编辑的实例 id；新增模式：留空 */
+  editInstanceId?: string
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-const { instances, addInstance, deleteInstance } = useInstances()
+const { instances, addInstance, updateInstance, deleteInstance } = useInstances()
 
+const mode = ref<'add' | 'edit'>('add')
 const form = reactive({
   name: '',
   url: '',
   username: '',
   apiToken: ''
 })
-
 const formLoading = ref(false)
 const formError = ref<string | null>(null)
 
 /**
- * 添加实例
+ * 加载要编辑的实例数据
  */
-const handleAddInstance = async () => {
-  formLoading.value = true
-  formError.value = null
-
-  const result = await addInstance({
-    name: form.name,
-    url: form.url,
-    username: form.username,
-    apiToken: form.apiToken
-  })
-
-  formLoading.value = false
-
-  if (result.success) {
-    // 清空表单
+watch(() => props.editInstanceId, (id) => {
+  if (id) {
+    mode.value = 'edit'
+    const instance = instances.value.find(i => i._id === id)
+    if (instance) {
+      form.name = instance.name
+      form.url = instance.url
+      form.username = instance.username
+      form.apiToken = ''
+    }
+  } else {
+    mode.value = 'add'
     form.name = ''
     form.url = ''
     form.username = ''
     form.apiToken = ''
-    window.ztools.showNotification('✅ 实例添加成功', 'Jenkins Lite')
-    emit('close')
+  }
+  formError.value = null
+}, { immediate: true })
+
+watch(() => props.show, (show) => {
+  if (show && props.editInstanceId) {
+    const instance = instances.value.find(i => i._id === props.editInstanceId)
+    if (instance) {
+      form.name = instance.name
+      form.url = instance.url
+      form.username = instance.username
+      form.apiToken = ''
+    }
+  }
+  if (!show) {
+    formError.value = null
+  }
+})
+
+/**
+ * 提交表单
+ */
+const handleSubmit = async () => {
+  formLoading.value = true
+  formError.value = null
+
+  if (mode.value === 'edit') {
+    const data: Partial<JenkinsInstance> = {
+      name: form.name,
+      url: form.url,
+      username: form.username
+    }
+    if (form.apiToken) {
+      data.apiToken = form.apiToken
+    }
+
+    const result = await updateInstance(props.editInstanceId!, data)
+    formLoading.value = false
+
+    if (result.success) {
+      window.ztools.showNotification('✅ 实例已更新', 'Jenkins Lite')
+      emit('close')
+    } else {
+      formError.value = result.error || '更新失败'
+    }
   } else {
-    formError.value = result.error || '添加失败'
+    const result = await addInstance({
+      name: form.name,
+      url: form.url,
+      username: form.username,
+      apiToken: form.apiToken
+    })
+    formLoading.value = false
+
+    if (result.success) {
+      form.name = ''
+      form.url = ''
+      form.username = ''
+      form.apiToken = ''
+      window.ztools.showNotification('✅ 实例添加成功', 'Jenkins Lite')
+      emit('close')
+    } else {
+      formError.value = result.error || '添加失败'
+    }
   }
 }
 
 /**
  * 删除实例
  */
-const handleDeleteInstance = (id: string) => {
+const handleDelete = () => {
   if (confirm('确定要删除这个实例吗？')) {
-    deleteInstance(id)
+    deleteInstance(props.editInstanceId!)
     window.ztools.showNotification('🗑️ 实例已删除', 'Jenkins Lite')
+    emit('close')
+  }
+}
+
+/**
+ * 切换到编辑某个实例
+ */
+const switchToEdit = (id: string) => {
+  const instance = instances.value.find(i => i._id === id)
+  if (instance) {
+    form.name = instance.name
+    form.url = instance.url
+    form.username = instance.username
+    form.apiToken = ''
+    mode.value = 'edit'
+    // 直接修改 props 不允许，需要通过 emit 让父组件更新
+    formError.value = null
   }
 }
 </script>
@@ -173,23 +263,29 @@ const handleDeleteInstance = (id: string) => {
 .settings-modal {
   background: var(--bg-color, #fff);
   border-radius: 8px;
-  width: 480px;
+  width: 720px;
+  max-width: 90vw;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+}
+
+.settings-modal.edit-mode {
+  width: 720px;
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border-color, #e0e0e0);
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .close-btn {
@@ -200,6 +296,7 @@ const handleDeleteInstance = (id: string) => {
   font-size: 20px;
   cursor: pointer;
   border-radius: 4px;
+  color: var(--text-color, #333);
 }
 
 .close-btn:hover {
@@ -212,40 +309,57 @@ const handleDeleteInstance = (id: string) => {
   padding: 20px;
 }
 
-.settings-section {
-  margin-bottom: 24px;
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  background: var(--bg-secondary, #f5f5f5);
+  border-radius: 0 0 8px 8px;
 }
 
-.settings-section:last-child {
-  margin-bottom: 0;
+.security-notice {
+  font-size: 11px;
+  color: var(--text-secondary, #666);
+  line-height: 1.6;
 }
 
-.settings-section h3 {
-  margin: 0 0 12px;
-  font-size: 14px;
-  font-weight: 600;
+.security-notice a {
+  color: var(--primary-color, #0078d4);
+  text-decoration: none;
+}
+
+.security-notice a:hover {
+  text-decoration: underline;
+}
+
+/* 横向布局：4 列 */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .form-group {
-  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
+  margin-bottom: 4px;
+  font-size: 12px;
   font-weight: 500;
+  color: var(--text-color, #333);
 }
 
 .form-group input {
-  width: 100%;
-  padding: 8px 12px;
+  padding: 8px 10px;
   border: 1px solid var(--border-color, #e0e0e0);
   border-radius: 4px;
   font-size: 13px;
   box-sizing: border-box;
   background: var(--bg-color, #fff);
   color: var(--text-color, #333);
+  transition: border-color 0.15s;
 }
 
 .form-group input::placeholder {
@@ -259,7 +373,7 @@ const handleDeleteInstance = (id: string) => {
 
 .help-text {
   display: block;
-  margin-top: 4px;
+  margin: 8px 0 16px;
   font-size: 11px;
   color: var(--text-secondary, #888);
 }
@@ -271,7 +385,14 @@ const handleDeleteInstance = (id: string) => {
   border: 1px solid #ffccc7;
   border-radius: 4px;
   color: #ff4d4f;
-  font-size: 13px;
+  font-size: 12px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 .btn {
@@ -279,6 +400,12 @@ const handleDeleteInstance = (id: string) => {
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
+  transition: opacity 0.15s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btn-primary {
@@ -287,61 +414,105 @@ const handleDeleteInstance = (id: string) => {
   color: #fff;
 }
 
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.btn-primary:hover:not(:disabled) {
+  background: #006abc;
+}
+
+.btn-default {
+  background: var(--bg-color, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  color: var(--text-color, #333);
+}
+
+.btn-default:hover {
+  background: var(--bg-hover, #f5f5f5);
 }
 
 .btn-danger {
-  background: #fff;
+  background: var(--bg-color, #fff);
   border: 1px solid #ff4d4f;
   color: #ff4d4f;
+  margin-right: auto;
 }
 
 .btn-danger:hover {
   background: #fff2f0;
 }
 
-.btn-sm {
-  padding: 4px 12px;
-  font-size: 12px;
+/* 管理已有实例 */
+.manage-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
 }
 
-.empty-text {
-  padding: 16px;
-  text-align: center;
-  color: var(--text-secondary, #888);
+.manage-section h3 {
+  margin: 0 0 12px;
   font-size: 13px;
+  font-weight: 600;
+  color: var(--text-color, #333);
 }
 
 .instance-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .instance-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px;
+  padding: 10px 12px;
   background: var(--bg-secondary, #f5f5f5);
   border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.instance-item:hover {
+  background: var(--bg-hover, rgba(0,120,212,0.08));
 }
 
 .instance-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
 .instance-name {
   font-weight: 500;
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .instance-url {
   font-size: 11px;
   color: var(--text-secondary, #888);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instance-edit-icon {
+  font-size: 18px;
+  color: var(--text-secondary, #888);
+  margin-left: 8px;
+}
+
+/* 暗黑模式适配 */
+@media (prefers-color-scheme: dark) {
+  .error-text {
+    background: rgba(255, 77, 79, 0.1);
+    border-color: rgba(255, 77, 79, 0.3);
+  }
+
+  .btn-danger:hover {
+    background: rgba(255, 77, 79, 0.1);
+  }
 }
 </style>

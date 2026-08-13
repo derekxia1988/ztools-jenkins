@@ -2,6 +2,7 @@
   <div class="jobs-list">
     <div class="jobs-header">
       <input
+        ref="searchInputRef"
         v-model="searchQuery"
         type="text"
         class="search-input"
@@ -57,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import JobItem from './JobItem.vue'
 import { useInstances } from '../composables/useInstances'
 import { useFavorites } from '../composables/useFavorites'
@@ -66,6 +67,8 @@ import type { JobInfo } from '../types'
 const props = defineProps<{
   selectedJob?: string
   currentView?: string
+  focusKey?: number
+  initialQuery?: string
 }>()
 
 const emit = defineEmits<{
@@ -98,7 +101,8 @@ const checkFavorited = (jobName: string): boolean => {
 const jobs = ref<JobInfo[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
-const searchQuery = ref('')
+const searchQuery = ref(props.initialQuery || '')
+const searchInputRef = ref<HTMLInputElement | null>(null)
 const buildConfirmJob = ref<JobInfo | null>(null)
 const building = ref(false)
 
@@ -250,6 +254,15 @@ watch(jobs, (newJobs) => {
     if (firstJob) {
       handleJobClick(firstJob)
     }
+  }
+})
+
+// 监听 focusKey，触发搜索框聚焦
+watch(() => props.focusKey, (key) => {
+  if (key) {
+    nextTick(() => {
+      searchInputRef.value?.focus()
+    })
   }
 })
 

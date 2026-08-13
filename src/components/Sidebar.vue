@@ -47,28 +47,13 @@
           加载中...
         </div>
       </div>
-
-      <!-- 收藏列表 -->
-      <div class="nav-section">
-        <div class="nav-section-title">收藏</div>
-        <div
-          v-for="fav in favorites"
-          :key="fav._id"
-          class="nav-item"
-          :class="{ active: isActiveFavorite(fav) }"
-          @click="handleFavoriteClick(fav)"
-        >
-          <span class="nav-icon star-icon"></span>
-          <span class="nav-label">{{ fav.jobName }}</span>
-        </div>
-        <div v-if="favorites.length === 0" class="nav-empty">
-          暂无收藏
-        </div>
-      </div>
     </nav>
 
     <div class="sidebar-footer">
-      <div class="version">v1.0.0</div>
+      <a class="footer-link" href="https://github.com/kshq1996/ztools-jenkins" target="_blank" title="查看开源仓库">
+        <span class="github-icon"></span>
+        <span>开源 v{{ version }}</span>
+      </a>
     </div>
   </aside>
 </template>
@@ -76,7 +61,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useInstances } from '../composables/useInstances'
-import { useFavorites } from '../composables/useFavorites'
 import type { Favorite, JenkinsView } from '../types'
 
 const props = defineProps<{
@@ -90,38 +74,26 @@ const emit = defineEmits<{
 }>()
 
 const { instances, currentInstance, currentClient, hasInstances, switchInstance } = useInstances()
-const { favorites } = useFavorites()
 
 const views = ref<JenkinsView[]>([])
 const showServiceMenu = ref(false)
+const version = '1.1.0'
 
-/**
- * 切换服务菜单
- */
 const toggleServiceMenu = () => {
   showServiceMenu.value = !showServiceMenu.value
 }
 
-/**
- * 选择服务
- */
 const selectService = (instanceId: string) => {
   switchInstance(instanceId)
   showServiceMenu.value = false
   emit('view-change', '')
 }
 
-/**
- * 打开设置
- */
 const openSettings = () => {
   showServiceMenu.value = false
   emit('open-settings')
 }
 
-/**
- * 加载视图列表
- */
 const loadViews = async () => {
   if (!currentClient.value) {
     views.value = []
@@ -134,26 +106,10 @@ const loadViews = async () => {
   }
 }
 
-/**
- * 选择视图
- */
 const selectView = (viewName: string) => {
   emit('view-change', viewName)
 }
 
-const isActiveFavorite = (fav: Favorite) => {
-  return currentInstance.value?._id === fav.instanceId
-}
-
-const handleFavoriteClick = (fav: Favorite) => {
-  // 如果不在当前实例，切换实例
-  if (currentInstance.value?._id !== fav.instanceId) {
-    switchInstance(fav.instanceId)
-  }
-  emit('favorite-click', fav)
-}
-
-// 监听实例变化，加载视图
 watch(currentInstance, () => {
   loadViews()
 })
@@ -170,6 +126,239 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.sidebar {
+  width: 200px;
+  height: 100%;
+  background: var(--bg-secondary, #f5f5f5);
+  border-right: 1px solid var(--border-color, #e0e0e0);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.logo {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* 服务选择器 */
+.service-selector {
+  position: relative;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.service-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-color, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.service-current:hover {
+  border-color: var(--primary-color, #0078d4);
+}
+
+.service-name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-arrow {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--text-secondary, #888);
+  margin-left: 8px;
+  transition: transform 0.2s;
+}
+
+.service-arrow.open {
+  transform: rotate(180deg);
+}
+
+.service-menu {
+  position: absolute;
+  top: 100%;
+  left: 16px;
+  right: 16px;
+  margin-top: 4px;
+  background: var(--bg-color, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.service-option {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.service-option:hover {
+  background: var(--bg-hover, #f5f5f5);
+}
+
+.service-option.active {
+  background: var(--primary-bg, rgba(0,120,212,0.1));
+}
+
+.service-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-secondary, #888);
+  margin-right: 8px;
+}
+
+.service-option.active .service-dot {
+  background: var(--primary-color, #0078d4);
+}
+
+.service-option-name {
+  font-size: 13px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-divider {
+  height: 1px;
+  background: var(--border-color, #e0e0e0);
+  margin: 4px 0;
+}
+
+.add-service {
+  color: var(--primary-color, #0078d4);
+}
+
+.add-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.nav-section {
+  margin-bottom: 16px;
+}
+
+.nav-section-title {
+  padding: 8px 16px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #666);
+  text-transform: uppercase;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.nav-item:hover {
+  background: var(--bg-hover, rgba(0,0,0,0.05));
+}
+
+.nav-item.active {
+  background: var(--primary-bg, rgba(0,120,212,0.1));
+  color: var(--primary-color, #0078d4);
+}
+
+.nav-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  background: var(--text-secondary, #888);
+}
+
+.view-icon {
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Crect x='3' y='3' width='7' height='7'/%3E%3Crect x='14' y='3' width='7' height='7'/%3E%3Crect x='3' y='14' width='7' height='7'/%3E%3Crect x='14' y='14' width='7' height='7'/%3E%3C/svg%3E") center/contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Crect x='3' y='3' width='7' height='7'/%3E%3Crect x='14' y='3' width='7' height='7'/%3E%3Crect x='3' y='14' width='7' height='7'/%3E%3Crect x='14' y='14' width='7' height='7'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+.nav-item.active .nav-icon {
+  background: var(--primary-color, #0078d4);
+}
+
+.nav-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.nav-empty {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--text-secondary, #999);
+}
+
+.sidebar-footer {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+}
+
+.footer-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  text-decoration: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.footer-link:hover {
+  background: var(--bg-hover, rgba(0,0,0,0.05));
+  color: var(--primary-color, #0078d4);
+}
+
+.github-icon {
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='currentColor' d='M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5c.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34c-.46-1.16-1.11-1.47-1.11-1.47c-.91-.62.07-.6.07-.6c1 .07 1.53 1.03 1.53 1.03c.87 1.52 2.34 1.07 2.91.83c.09-.65.35-1.09.63-1.34c-2.22-.25-4.55-1.11-4.55-4.94c0-1.11.38-2 1.03-2.71c-.1-.25-.45-1.29.1-2.64c0 0 .84-.27 2.75 1.02c.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02c.55 1.35.2 2.39.1 2.64c.65.71 1.03 1.6 1.03 2.71c0 3.84-2.34 4.68-4.57 4.93c.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='currentColor' d='M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5c.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34c-.46-1.16-1.11-1.47-1.11-1.47c-.91-.62.07-.6.07-.6c1 .07 1.53 1.03 1.53 1.03c.87 1.52 2.34 1.07 2.91.83c.09-.65.35-1.09.63-1.34c-2.22-.25-4.55-1.11-4.55-4.94c0-1.11.38-2 1.03-2.71c-.1-.25-.45-1.29.1-2.64c0 0 .84-.27 2.75 1.02c.79-.22 1.65-.33 2.5-.33s1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02c.55 1.35.2 2.39.1 2.64c.65.71 1.03 1.6 1.03 2.71c0 3.84-2.34 4.68-4.57 4.93c.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+</style>
 
 <style scoped>
 .sidebar {

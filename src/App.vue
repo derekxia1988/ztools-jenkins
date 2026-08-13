@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar.vue'
 import JobsList from './components/JobsList.vue'
 import BuildHistory from './components/BuildHistory.vue'
 import SettingsModal from './components/SettingsModal.vue'
+import FavoritesPanel from './components/FavoritesPanel.vue'
 import { useInstances } from './composables/useInstances'
 import { useFavorites } from './composables/useFavorites'
 import type { JobInfo, Favorite } from './types'
@@ -13,18 +14,19 @@ const { loadFavorites } = useFavorites()
 
 const selectedJob = ref<string | undefined>(undefined)
 const showSettings = ref(false)
+const editInstanceId = ref<string | undefined>(undefined)
 const currentView = ref<string>('')
 const autoSelectFirstJob = ref(false)
+const searchFocusKey = ref(0)
+const initialSearchQuery = ref('')
 
 /**
  * 处理收藏点击 - 跳转到收藏的视图并选中该 job
  */
 const handleFavoriteClick = (fav: Favorite) => {
-  // 如果视图不同，先切换视图
   const targetView = fav.viewName || ''
   if (currentView.value !== targetView) {
     currentView.value = targetView
-    // 延迟选中 job，等视图加载完成
     setTimeout(() => {
       selectedJob.value = fav.jobName
     }, 100)
@@ -39,7 +41,6 @@ const handleFavoriteClick = (fav: Favorite) => {
 const handleViewChange = (viewName: string) => {
   currentView.value = viewName
   autoSelectFirstJob.value = true
-  // 重置标记，等待 JobsList 处理
   setTimeout(() => {
     autoSelectFirstJob.value = false
   }, 100)
@@ -59,13 +60,45 @@ const handleBuildComplete = (result: { jobName: string; success: boolean }) => {
   // 构建完成通知由 JobsList 组件处理
 }
 
+/**
+ * 打开设置 - 编辑当前实例
+ */
+const handleOpenSettings = () => {
+  if (currentInstance.value) {
+    editInstanceId.value = currentInstance.value._id
+  } else {
+    editInstanceId.value = undefined
+  }
+  showSettings.value = true
+}
+
+/**
+ * 在设置中选择编辑其他实例
+ */
+const handleEditInstance = (id: string) => {
+  editInstanceId.value = id
+}
+
 onMounted(async () => {
   await loadInstances()
   loadFavorites()
 
-  // 首次使用：没有配置实例时，自动显示设置引导
+  // 读取插件启动时传入的搜索文本
+  const getPayload = (window as any).__getPluginInitPayload
+  if (typeof getPayload === 'function') {
+    const payload = getPayload()
+    if (payload && payload.type === 'over' && payload.payload) {
+      initialSearchQuery.value = String(payload.payload)
+      // 触发搜索框聚焦
+      setTimeout(() => {
+        searchFocusKey.value++
+      }, 200)
+    }
+  }
+
   if (!hasInstances.value) {
     showSettings.value = true
+    editInstanceId.value = undefined
   }
 })
 </script>
@@ -76,17 +109,21 @@ onMounted(async () => {
       :current-view="currentView"
       @favorite-click="handleFavoriteClick"
       @view-change="handleViewChange"
-      @open-settings="showSettings = true"
+      @open-settings="handleOpenSettings"
     />
 
     <main class="main-content">
       <header class="content-header">
         <div class="header-left">
-          <h2 v-if="currentInstance">{{ currentInstance.name }}</h2>
+          <h2 v-if="currentInstance" :title="currentInstance.name">{{ currentInstance.name }}</h2>
           <h2 v-else>Jenkins Lite</h2>
         </div>
         <div class="header-right">
-          <button class="header-btn settings-icon" @click="showSettings = true" title="设置"></button>
+          <button
+            class="header-btn settings-icon"
+            @click="handleOpenSettings"
+            :title="currentInstance ? '编辑当前实例' : '添加实例'"
+          ></button>
         </div>
       </header>
 
@@ -95,8 +132,17 @@ onMounted(async () => {
           <JobsList
             :selected-job="selectedJob"
             :current-view="currentView"
+            :focus-key="searchFocusKey"
+            :initial-query="initialSearchQuery"
             @job-click="handleJobClick"
             @build-complete="handleBuildComplete"
+          />
+        </div>
+
+        <div class="favorites-panel-wrapper">
+          <FavoritesPanel
+            :selected-job="selectedJob"
+            @favorite-click="handleFavoriteClick"
           />
         </div>
 
@@ -106,7 +152,11 @@ onMounted(async () => {
       </div>
     </main>
 
-    <SettingsModal :show="showSettings" @close="showSettings = false" />
+    <SettingsModal
+      :show="showSettings"
+      :edit-instance-id="editInstanceId"
+      @close="showSettings = false"
+    />
   </div>
 </template>
 
@@ -170,6 +220,10 @@ body {
 .header-left h2 {
   font-size: 16px;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 400px;
 }
 
 .header-right {
@@ -210,8 +264,14 @@ body {
   border-right: 1px solid var(--border-color, #e0e0e0);
 }
 
+.favorites-panel-wrapper {
+  width: 220px;
+  overflow: hidden;
+  border-right: 1px solid var(--border-color, #e0e0e0);
+}
+
 .history-panel {
-  width: 300px;
+  width: 320px;
   overflow: hidden;
 }
 </style>
