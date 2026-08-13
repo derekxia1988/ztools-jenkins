@@ -222,9 +222,9 @@ const confirmBuild = async () => {
   buildConfirmJob.value = null
 
   if (result.error) {
-    window.ztools.showNotification(`❌ 构建触发失败: ${result.error}`, 'Jenkins Lite')
+    window.ztools.showNotification(`构建触发失败: ${result.error}`, 'Jenkins Lite')
   } else {
-    window.ztools.showNotification(`🚀 ${jobName} 构建已触发`, 'Jenkins Lite')
+    window.ztools.showNotification(`${jobName} 构建已触发`, 'Jenkins Lite')
     // 刷新 Jobs 列表以更新状态
     setTimeout(() => loadJobs(), 2000)
   }

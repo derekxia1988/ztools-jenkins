@@ -42,7 +42,7 @@
           title="收藏的 Jobs"
         >
           <span class="nav-icon star-icon"></span>
-          <span class="nav-label">⭐ 收藏</span>
+          <span class="nav-label">收藏</span>
           <span class="favorite-count" v-if="currentInstanceFavorites.length > 0">
             {{ currentInstanceFavorites.length }}
           </span>

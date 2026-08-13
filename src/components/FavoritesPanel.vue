@@ -1,7 +1,7 @@
 <template>
   <div class="favorites-panel">
     <div class="panel-header">
-      <h3>⭐ 收藏</h3>
+      <h3>收藏</h3>
       <span class="count">{{ favorites.length }}</span>
     </div>
 
@@ -24,7 +24,7 @@
       >
         <div class="favorite-info">
           <span class="favorite-name" :title="fav.jobName">{{ fav.jobName }}</span>
-          <span class="favorite-view" v-if="fav.viewName">📁 {{ fav.viewName }}</span>
+          <span class="favorite-view" v-if="fav.viewName">{{ fav.viewName }}</span>
         </div>
         <button
           class="build-btn"
@@ -72,9 +72,9 @@ const handleQuickBuild = async (fav: Favorite) => {
 
   const result = await currentClient.value.triggerBuild(fav.jobName)
   if (result.error) {
-    window.ztools.showNotification(`❌ ${fav.jobName} 构建触发失败: ${result.error}`, 'Jenkins Lite')
+    window.ztools.showNotification(`构建触发失败: ${fav.jobName} - ${result.error}`, 'Jenkins Lite')
   } else {
-    window.ztools.showNotification(`🚀 ${fav.jobName} 构建已触发`, 'Jenkins Lite')
+    window.ztools.showNotification(`${fav.jobName} 构建已触发`, 'Jenkins Lite')
   }
 }
 </script>

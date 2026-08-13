@@ -95,10 +95,13 @@
 
       <div class="modal-footer">
         <div class="security-notice">
-          🔒 数据安全：本插件开源透明，所有配置仅保存在你的本地设备，不上传任何服务器。<br>
-          <a href="https://github.com/kshq1996/ztools-jenkins" target="_blank">
-            github.com/kshq1996/ztools-jenkins
-          </a>
+          <span class="lock-icon"></span>
+          <span class="security-text">
+            数据安全：本插件开源透明，所有配置仅保存在你的本地设备，不上传任何服务器。<br>
+            <a href="https://github.com/kshq1996/ztools-jenkins" target="_blank">
+              github.com/kshq1996/ztools-jenkins
+            </a>
+          </span>
         </div>
       </div>
     </div>
@@ -191,7 +194,7 @@ const handleSubmit = async () => {
     formLoading.value = false
 
     if (result.success) {
-      window.ztools.showNotification('✅ 实例已更新', 'Jenkins Lite')
+      window.ztools.showNotification('实例已更新', 'Jenkins Lite')
       emit('close')
     } else {
       formError.value = result.error || '更新失败'
@@ -210,7 +213,7 @@ const handleSubmit = async () => {
       form.url = ''
       form.username = ''
       form.apiToken = ''
-      window.ztools.showNotification('✅ 实例添加成功', 'Jenkins Lite')
+      window.ztools.showNotification('实例添加成功', 'Jenkins Lite')
       emit('close')
     } else {
       formError.value = result.error || '添加失败'
@@ -224,7 +227,7 @@ const handleSubmit = async () => {
 const handleDelete = () => {
   if (confirm('确定要删除这个实例吗？')) {
     deleteInstance(props.editInstanceId!)
-    window.ztools.showNotification('🗑️ 实例已删除', 'Jenkins Lite')
+    window.ztools.showNotification('实例已删除', 'Jenkins Lite')
     emit('close')
   }
 }
@@ -317,9 +320,26 @@ const switchToEdit = (id: string) => {
 }
 
 .security-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   font-size: 11px;
   color: var(--text-secondary, #666);
   line-height: 1.6;
+}
+
+.security-text {
+  flex: 1;
+}
+
+.lock-icon {
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  background: var(--primary-color, #0078d4);
+  flex-shrink: 0;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M19 10h-1V8c0-3.31-2.69-6-6-6S6 4.69 6 8v2H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2zM12 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-7H8.9V8c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z'/%3E%3C/svg%3E") center/contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M19 10h-1V8c0-3.31-2.69-6-6-6S6 4.69 6 8v2H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2zM12 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-7H8.9V8c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 
 .security-notice a {
