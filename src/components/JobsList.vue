@@ -119,8 +119,8 @@ const loadJobs = async () => {
   error.value = null
 
   let result
+  // 收藏视图：加载所有 jobs，由 filteredJobs 过滤出收藏的
   if (props.currentView === '__favorites__') {
-    // 收藏视图：加载所有 jobs，由 filteredJobs 过滤出收藏的
     result = await currentClient.value.getJobs()
   } else if (props.currentView) {
     result = await currentClient.value.getViewJobs(props.currentView)
