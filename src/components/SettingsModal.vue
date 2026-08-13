@@ -106,19 +106,11 @@ const emit = defineEmits<{
 
 const { instances, addInstance, deleteInstance } = useInstances()
 
-// 测试环境配置（仅开发调试用，打包时会移除）
-const DEV_CONFIG = import.meta.env.VITE_DEV_JENKINS_ENABLED === 'true' ? {
-  name: import.meta.env.VITE_DEV_JENKINS_NAME || '',
-  url: import.meta.env.VITE_DEV_JENKINS_URL || '',
-  username: import.meta.env.VITE_DEV_JENKINS_USER || '',
-  apiToken: import.meta.env.VITE_DEV_JENKINS_TOKEN || ''
-} : null
-
 const form = reactive({
-  name: DEV_CONFIG?.name || '',
-  url: DEV_CONFIG?.url || '',
-  username: DEV_CONFIG?.username || '',
-  apiToken: DEV_CONFIG?.apiToken || ''
+  name: '',
+  url: '',
+  username: '',
+  apiToken: ''
 })
 
 const formLoading = ref(false)

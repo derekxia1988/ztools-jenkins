@@ -58,7 +58,7 @@ export function useFavorites() {
     if (index === -1) return false
 
     const favorite = favorites.value[index]
-    window.ztools.db.remove(favorite)
+    window.ztools.db.remove(favorite._id)
     favorites.value.splice(index, 1)
     return true
   }

@@ -1,13 +1,13 @@
 <template>
-  <div class="job-item" @click="$emit('click')">
-    <div class="job-info">
+  <div class="job-item">
+    <div class="job-info" @click="$emit('click')">
       <span
         class="job-status"
         :style="{ color: statusInfo.color }"
       >
         {{ statusInfo.icon }}
       </span>
-      <span class="job-name">{{ job.name }}</span>
+      <span class="job-name" :title="job.name">{{ job.name }}</span>
     </div>
 
     <div class="job-actions">

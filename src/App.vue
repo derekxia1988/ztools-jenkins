@@ -13,7 +13,7 @@ const { loadFavorites } = useFavorites()
 
 const selectedJob = ref<string | undefined>(undefined)
 const showSettings = ref(false)
-const currentView = ref<string>('all')
+const currentView = ref<string>('')
 const autoSelectFirstJob = ref(false)
 
 /**
@@ -21,8 +21,9 @@ const autoSelectFirstJob = ref(false)
  */
 const handleFavoriteClick = (fav: Favorite) => {
   // 如果视图不同，先切换视图
-  if (currentView.value !== fav.viewName) {
-    currentView.value = fav.viewName
+  const targetView = fav.viewName || ''
+  if (currentView.value !== targetView) {
+    currentView.value = targetView
     // 延迟选中 job，等视图加载完成
     setTimeout(() => {
       selectedJob.value = fav.jobName

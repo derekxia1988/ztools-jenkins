@@ -74,14 +74,25 @@ const emit = defineEmits<{
 }>()
 
 const { currentInstance, currentClient, loadInstances } = useInstances()
-const { isFavorited, toggleFavorite, loadFavorites } = useFavorites()
+const { isFavorited, toggleFavorite, loadFavorites, favorites } = useFavorites()
+
+/**
+ * 收藏的 Job 名称集合（响应式）
+ */
+const favoritedJobs = computed(() => {
+  if (!currentInstance.value) return new Set<string>()
+  return new Set(
+    favorites.value
+      .filter(f => f.instanceId === currentInstance.value?._id)
+      .map(f => f.jobName)
+  )
+})
 
 /**
  * 检查 Job 是否已收藏
  */
 const checkFavorited = (jobName: string): boolean => {
-  if (!currentInstance.value) return false
-  return isFavorited(currentInstance.value._id, jobName)
+  return favoritedJobs.value.has(jobName)
 }
 
 const jobs = ref<JobInfo[]>([])
@@ -105,7 +116,7 @@ const loadJobs = async () => {
 
   let result
   // 根据当前视图加载 Jobs
-  if (props.currentView && props.currentView !== 'all') {
+  if (props.currentView) {
     result = await currentClient.value.getViewJobs(props.currentView)
   } else {
     result = await currentClient.value.getJobs()

@@ -38,16 +38,17 @@
             ></span>
             <span class="build-number">#{{ build.number }}</span>
             <span class="build-result">{{ getBuildResultText(build) }}</span>
+            <span class="build-duration">{{ formatDuration(build.duration, build.building) }}</span>
           </div>
           <div class="build-times">
-            <span class="time-item">
+            <div class="time-row">
               <span class="time-label">开始</span>
               <span class="time-value">{{ formatStartTime(build.timestamp) }}</span>
-            </span>
-            <span class="time-item">
-              <span class="time-label">耗时</span>
-              <span class="time-value">{{ formatDuration(build.duration, build.building) }}</span>
-            </span>
+            </div>
+            <div class="time-row" v-if="!build.building && build.duration">
+              <span class="time-label">结束</span>
+              <span class="time-value">{{ formatEndTime(build.timestamp, build.duration) }}</span>
+            </div>
           </div>
         </div>
         <span class="build-link">→</span>
@@ -129,13 +130,30 @@ const getBuildResultText = (build: BuildInfo): string => {
 }
 
 /**
- * 格式化开始时间
+ * 格式化开始时间（包含完整日期）
  */
 const formatStartTime = (timestamp: number): string => {
   const date = new Date(timestamp)
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
   const hours = date.getHours().toString().padStart(2, '0')
   const minutes = date.getMinutes().toString().padStart(2, '0')
-  return `${hours}:${minutes}`
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
+/**
+ * 格式化结束时间（包含完整日期）
+ */
+const formatEndTime = (timestamp: number, duration: number): string => {
+  const endTimestamp = timestamp + duration
+  const date = new Date(endTimestamp)
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
 /**
@@ -329,21 +347,28 @@ onUnmounted(() => {
   color: var(--text-secondary, #666);
 }
 
+.build-duration {
+  font-size: 12px;
+  color: var(--text-secondary, #888);
+}
+
 .build-times {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
   padding-left: 16px;
 }
 
-.time-item {
+.time-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 
 .time-label {
   font-size: 11px;
   color: var(--text-secondary, #999);
+  min-width: 24px;
 }
 
 .time-value {

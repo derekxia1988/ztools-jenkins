@@ -34,14 +34,6 @@
       <div class="nav-section" v-if="hasInstances && currentInstance">
         <div class="nav-section-title">视图</div>
         <div
-          class="nav-item"
-          :class="{ active: props.currentView === 'all' }"
-          @click="selectView('all')"
-        >
-          <span class="nav-icon view-icon"></span>
-          <span class="nav-label">全部</span>
-        </div>
-        <div
           v-for="view in views"
           :key="view.name"
           class="nav-item"
@@ -49,9 +41,9 @@
           @click="selectView(view.name)"
         >
           <span class="nav-icon view-icon"></span>
-          <span class="nav-label">{{ view.name }}</span>
+          <span class="nav-label" :title="view.name">{{ view.name }}</span>
         </div>
-        <div v-if="views.length === 0 && props.currentView !== 'all'" class="nav-empty">
+        <div v-if="views.length === 0" class="nav-empty">
           加载中...
         </div>
       </div>
@@ -116,7 +108,7 @@ const toggleServiceMenu = () => {
 const selectService = (instanceId: string) => {
   switchInstance(instanceId)
   showServiceMenu.value = false
-  emit('view-change', 'all')
+  emit('view-change', '')
 }
 
 /**
