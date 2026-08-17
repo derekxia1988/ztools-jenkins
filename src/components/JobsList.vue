@@ -32,6 +32,7 @@
           :key="job.url"
           :job="job"
           :favorited="checkFavorited(job.fullName || job.name)"
+          :show-full-name="props.currentView === '__favorites__'"
           @toggle-favorite="handleToggleFavorite"
           @build="handleBuild"
           @click="handleJobClick"
@@ -62,6 +63,7 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import JobItem from './JobItem.vue'
 import { useInstances } from '../composables/useInstances'
 import { useFavorites } from '../composables/useFavorites'
+import { flattenFavoriteJobs } from '../utils/jobs'
 import type { JobInfo } from '../types'
 
 const props = defineProps<{
@@ -153,7 +155,7 @@ const filteredJobs = computed(() => {
 
   // 收藏视图：只显示收藏的 jobs
   if (props.currentView === '__favorites__') {
-    list = filterJobsByFullName(list, favoritedJobs.value)
+    list = flattenFavoriteJobs(list, favoritedJobs.value)
   }
 
   // 搜索过滤
@@ -163,16 +165,6 @@ const filteredJobs = computed(() => {
   return filterJobsRecursive(list, query)
 })
 
-const filterJobsByFullName = (jobList: JobInfo[], names: Set<string>): JobInfo[] => {
-  return jobList.flatMap(job => {
-    const fullName = job.fullName || job.name
-    if (names.has(fullName)) return [job]
-
-    const children = job.jobs ? filterJobsByFullName(job.jobs, names) : []
-    return children.length > 0 ? [{ ...job, jobs: children }] : []
-  })
-}
-
 /**
  * 递归过滤 Jobs（包括 Folder 内的 Jobs）
  */
@@ -180,7 +172,7 @@ const filterJobsRecursive = (jobList: JobInfo[], query: string): JobInfo[] => {
   const result: JobInfo[] = []
 
   for (const job of jobList) {
-    if (job.name.toLowerCase().includes(query)) {
+    if ((job.fullName || job.name).toLowerCase().includes(query)) {
       result.push(job)
     } else if (job.jobs && job.jobs.length > 0) {
       const filtered = filterJobsRecursive(job.jobs, query)

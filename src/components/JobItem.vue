@@ -12,7 +12,7 @@
       >
         {{ statusInfo.icon }}
       </span>
-      <span class="job-name" :title="job.name">{{ job.name }}</span>
+      <span class="job-name" :title="displayName">{{ displayName }}</span>
     </div>
 
     <div v-if="!isFolder" class="job-actions">
@@ -40,6 +40,7 @@
         :key="child.url"
         :job="child"
         :favorited="false"
+        :show-full-name="showFullName"
         @toggle-favorite="emit('toggle-favorite', $event)"
         @build="emit('build', $event)"
         @click="emit('click', $event)"
@@ -56,6 +57,7 @@ import { JOB_COLOR_MAP } from '../types'
 const props = defineProps<{
   job: JobInfo
   favorited: boolean
+  showFullName?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -65,6 +67,10 @@ const emit = defineEmits<{
 }>()
 
 const expanded = ref(false)
+
+const displayName = computed(() => {
+  return props.showFullName ? (props.job.fullName || props.job.name) : props.job.name
+})
 
 const isFolder = computed(() => {
   return Array.isArray(props.job.jobs) || /(?:Folder|MultiBranchProject)$/.test(props.job._class || '')

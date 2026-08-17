@@ -34,4 +34,19 @@ describe('JobItem folders', () => {
     await wrapper.findAll('.job-info')[1].trigger('click')
     expect(wrapper.emitted('click')).toEqual([[child]])
   })
+
+  it('shows the full job path in a flat favorites list', () => {
+    const job: JobInfo = {
+      name: 'deploy',
+      fullName: 'team/services/deploy',
+      url: 'http://jenkins.example/job/team/job/services/job/deploy/',
+      color: 'blue'
+    }
+    const wrapper = mount(JobItem, {
+      props: { job, favorited: true, showFullName: true }
+    })
+
+    expect(wrapper.find('.job-name').text()).toBe('team/services/deploy')
+    expect(wrapper.find('.folder-arrow').exists()).toBe(false)
+  })
 })
