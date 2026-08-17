@@ -49,7 +49,7 @@ const handleViewChange = (viewName: string) => {
  * 处理 Job 点击
  */
 const handleJobClick = (job: JobInfo) => {
-  selectedJob.value = job.name
+  selectedJob.value = job.fullName || job.name
 }
 
 /**

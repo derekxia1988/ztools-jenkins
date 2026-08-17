@@ -1,6 +1,11 @@
 <template>
   <div class="job-item">
-    <div class="job-info" @click="$emit('click')">
+    <div class="job-info" @click="handleClick">
+      <span
+        v-if="isFolder"
+        class="folder-arrow"
+        :class="{ expanded }"
+      ></span>
       <span
         class="job-status"
         :style="{ color: statusInfo.color }"
@@ -10,18 +15,18 @@
       <span class="job-name" :title="job.name">{{ job.name }}</span>
     </div>
 
-    <div class="job-actions">
+    <div v-if="!isFolder" class="job-actions">
       <button
         class="action-btn favorite-btn"
         :class="{ active: favorited }"
-        @click.stop="$emit('toggle-favorite')"
+        @click.stop="emit('toggle-favorite', job)"
         :title="favorited ? '取消收藏' : '添加收藏'"
       >
         <span class="star-icon"></span>
       </button>
       <button
         class="action-btn build-btn"
-        @click.stop="$emit('build')"
+        @click.stop="emit('build', job)"
         title="触发构建"
       >
         <span class="play-icon"></span>
@@ -35,9 +40,9 @@
         :key="child.url"
         :job="child"
         :favorited="false"
-        @toggle-favorite="$emit('toggle-favorite', child)"
-        @build="$emit('build', child)"
-        @click="$emit('click', child)"
+        @toggle-favorite="emit('toggle-favorite', $event)"
+        @build="emit('build', $event)"
+        @click="emit('click', $event)"
       />
     </div>
   </div>
@@ -53,13 +58,25 @@ const props = defineProps<{
   favorited: boolean
 }>()
 
-defineEmits<{
-  (e: 'toggle-favorite', job?: JobInfo): void
-  (e: 'build', job?: JobInfo): void
-  (e: 'click', job?: JobInfo): void
+const emit = defineEmits<{
+  (e: 'toggle-favorite', job: JobInfo): void
+  (e: 'build', job: JobInfo): void
+  (e: 'click', job: JobInfo): void
 }>()
 
 const expanded = ref(false)
+
+const isFolder = computed(() => {
+  return Array.isArray(props.job.jobs) || /(?:Folder|MultiBranchProject)$/.test(props.job._class || '')
+})
+
+const handleClick = () => {
+  if (isFolder.value) {
+    expanded.value = !expanded.value
+    return
+  }
+  emit('click', props.job)
+}
 
 /**
  * 获取状态信息
@@ -73,6 +90,7 @@ const statusInfo = computed(() => {
 <style scoped>
 .job-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   padding: 10px 12px;
   margin-bottom: 4px;
@@ -98,6 +116,20 @@ const statusInfo = computed(() => {
   font-size: 12px;
   width: 16px;
   text-align: center;
+}
+
+.folder-arrow {
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--text-secondary, #888);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.folder-arrow.expanded {
+  transform: rotate(90deg);
 }
 
 .job-name {
@@ -167,6 +199,8 @@ const statusInfo = computed(() => {
 }
 
 .job-children {
+  flex-basis: 100%;
+  width: 100%;
   margin-left: 16px;
   margin-top: 4px;
 }
